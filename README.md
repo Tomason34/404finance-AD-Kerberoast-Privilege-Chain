@@ -52,3 +52,28 @@ What Did Not Fully Work
 Result
 - Partial domain compromise achieved
 - Medium-difficulty Active Directory privilege chain documented
+## Commands Used
+
+- rpcclient enumeration
+- targeted Kerberoast
+- hashcat cracking
+- bloodyAD password reset chain
+- crackmapexec validation
+- xfreerdp lateral movement
+
+## Findings
+
+- Kerberoastable account: tom.reboot
+- Cracked password: P@ssw0rd123
+- ACL abuse allowed password reset chain
+- Lateral movement via Remote Desktop Users
+- RDP access achieved as jan.tresor
+- Domain admin escalation not completed
+
+## Screenshots
+
+![Enumeration](bank ad cmd.png)
+
+![RDP Access](bank cmd rdp.png)
+
+![Session](RDP bank challenge.png)
