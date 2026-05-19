@@ -1,3 +1,4 @@
+⚠️ Disclosure: This write‑up was created with AI assistance, but I did all the actual lab work.
 # 404finance AD Kerberoast Privilege Chain
 
 ## Step 1 — Valid Credentials
